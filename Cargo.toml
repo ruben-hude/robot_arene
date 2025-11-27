@@ -1,0 +1,24 @@
+[package]
+name = "robot_arene"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+avian2d = "0.4"
+
+[dependencies.bevy]
+version = "0.17.2"
+# features = ["wayland", "dynamic_linking"]
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+incremental = false
+debug = false
+
+[profile.dev.package."*"]
+opt-level = 3
