@@ -1,11 +1,10 @@
 use avian2d::prelude::*;
-use bevy::prelude::*;
+use bevy::{camera::ScalingMode, prelude::*};
 
-const PIXELS_PER_METER: f32 = 200.0;
-const ARENA_WIDTH_M: f32 = 3.0;
-const ARENA_HEIGHT_M: f32 = 2.0;
-const ROBOT_SIZE_M: f32 = 0.3 * PIXELS_PER_METER;
-const ROBOT_SPEED_M: f32 = 2.0;
+const ARENA_WIDTH_MM: f32 = 3000.0;
+const ARENA_HEIGHT_MM: f32 = 2000.0;
+const ROBOT_SIZE_MM: f32 = 300.0;
+const ROBOT_SPEED_MM_S: f32 = 2000.0;
 
 const COLOR_ROBOT: Color = Color::srgb(0.2, 0.8, 0.2);
 
@@ -33,19 +32,20 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(Camera2d::default());
+    commands.spawn((
+        Camera2d::default(),
+        Transform::from_xyz(ARENA_WIDTH_MM / 2.0, ARENA_HEIGHT_MM / 2.0, 0.0),
+    ));
+
 
     // Le fond d'après le fichier donné par le règlement
     commands.spawn((
         Sprite {
             image: asset_server.load("table.png"),
-            custom_size: Some(Vec2::new(
-                ARENA_WIDTH_M * PIXELS_PER_METER,
-                ARENA_HEIGHT_M * PIXELS_PER_METER,
-            )),
+            custom_size: Some(Vec2::new(ARENA_WIDTH_MM, ARENA_HEIGHT_MM)),
             ..default()
         },
-        Transform::from_xyz(0.0, 0.0, -1.0), // En arrière plan (Z = -1)
+        Transform::from_xyz(ARENA_WIDTH_MM / 2.0, ARENA_HEIGHT_MM / 2.0, -1.0), // En arrière plan (Z = -1)
     ));
 
     // Les Murs autour de l'arène
@@ -56,56 +56,48 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         // En vert pour l'instant
         Sprite {
             color: COLOR_ROBOT,
-            custom_size: Some(Vec2::new(ROBOT_SIZE_M, ROBOT_SIZE_M)),
+            custom_size: Some(Vec2::new(ROBOT_SIZE_MM, ROBOT_SIZE_MM)),
             ..default()
         },
-        Transform::from_xyz(0.0, 0.0, 1.0),
+        Transform::from_xyz(ARENA_WIDTH_MM / 2.0, ARENA_HEIGHT_MM / 2.0, 1.0),
         Robot,
-        Speed(ROBOT_SPEED_M),
+        Speed(ROBOT_SPEED_MM_S),
         // Composants Physiques (Avian)
         RigidBody::Dynamic,
-        Collider::rectangle(ROBOT_SIZE_M, ROBOT_SIZE_M), // Il a une forme physique carré
-        LockedAxes::ROTATION_LOCKED, // TODO : permettre au robot de tourner
+        Collider::rectangle(ROBOT_SIZE_MM, ROBOT_SIZE_MM), // Il a une forme physique carré
+        LockedAxes::ROTATION_LOCKED,                       // TODO : permettre au robot de tourner
     ));
 }
 
 fn spawn_arena_boundaries(commands: &mut Commands) {
-    let thickness = 0.5;
-
-    // Conversion en pixels pour la taille visuelle/physique
-    let w_pixels = ARENA_WIDTH_M * PIXELS_PER_METER;
-    let h_pixels = ARENA_HEIGHT_M * PIXELS_PER_METER;
-    let thick_pixels = thickness * PIXELS_PER_METER;
-
-    // Les positions sont calculées par rapport au centre (0,0)
-    // TODO: changer pour avoir la même grille que le règlement
-    
-    // Mur du Haut
-    spawn_wall(
-        commands,
-        Vec2::new(0.0, h_pixels / 2.0 + thick_pixels / 2.0),
-        Vec2::new(w_pixels + 2.0 * thick_pixels, thick_pixels),
-    );
+    let wall_thickness = 50.0; // épaisseur des murs en mm
 
     // Mur du Bas
     spawn_wall(
         commands,
-        Vec2::new(0.0, -(h_pixels / 2.0 + thick_pixels / 2.0)),
-        Vec2::new(w_pixels + 2.0 * thick_pixels, thick_pixels),
+        Vec2::new(ARENA_WIDTH_MM / 2.0, -wall_thickness / 2.0),
+        Vec2::new(ARENA_WIDTH_MM, wall_thickness),
+    );
+
+    // Mur du Haut
+    spawn_wall(
+        commands,
+        Vec2::new(ARENA_WIDTH_MM / 2.0, ARENA_HEIGHT_MM + wall_thickness / 2.0),
+        Vec2::new(ARENA_WIDTH_MM, wall_thickness),
     );
 
     // Mur Gauche
     spawn_wall(
         commands,
-        Vec2::new(-(w_pixels / 2.0 + thick_pixels / 2.0), 0.0),
-        Vec2::new(thick_pixels, h_pixels),
+        Vec2::new(-wall_thickness / 2.0, ARENA_HEIGHT_MM / 2.0),
+        Vec2::new(wall_thickness, ARENA_HEIGHT_MM),
     );
 
     // Mur Droit
     spawn_wall(
         commands,
-        Vec2::new(w_pixels / 2.0 + thick_pixels / 2.0, 0.0),
-        Vec2::new(thick_pixels, h_pixels),
+        Vec2::new(ARENA_WIDTH_MM + wall_thickness / 2.0, ARENA_HEIGHT_MM / 2.0),
+        Vec2::new(wall_thickness, ARENA_HEIGHT_MM),
     );
 }
 
@@ -146,7 +138,7 @@ fn move_robot(
 
         if direction.length() > 0.0 {
             direction = direction.normalize();
-            velocity.0 = direction * speed.0 * PIXELS_PER_METER;
+            velocity.0 = direction * speed.0;
         } else {
             // TODO : ajouter des charactéristiques de freinange du robot
             velocity.0 = Vec2::ZERO;
